@@ -8,7 +8,7 @@ program simulation
   integer,parameter :: Nvar=Ndim+2
   real,dimension(Ncell,Nvar) :: grid_primvar,grid_consvar,grid_fluxes
   !real(dp),parameter :: gam=4/3        ! isentropic expansion factor gamma
-
+! test
 ! initialisation
   subroutine init
     implicit none
