@@ -1,20 +1,40 @@
-program simulation
+module grid
   implicit none
-  integer, parameter:: dp=kind(0.d0)                   ! double precision
-  real(dp),parameter :: Xmin=0.0_dp,Xmax=1.0_dp
-  integer,parameter :: Ncell=100,Ndim=1
-  real(dp),parameter :: dx=(Xmax-Xmin)/Ncell
-  integer :: N
-  integer,parameter :: Nvar=Ndim+2
-  real,dimension(Ncell,Nvar) :: grid_primvar,grid_consvar,grid_fluxes
+  ! creates grid, initialise it and keeps it in memory for use
+  integer, parameter,save:: dp=kind(0.d0)                   ! double precision
+  integer,parameter,save :: Ncell=10,Ndim=1
+  !real(dp),parameter,save :: Xmin=0.0_dp,Xmax=1.0_dp,dx=(Xmax-Xmin)/Ncell
+  integer,parameter,save :: Nvar=Ndim+2
+  real,dimension(Nvar,Ncell),save :: primVar,consVar
+  integer :: i
+  character(len=32) :: filename
+
+  primVar(1,1:50)=3.0_dp; primVar(1,51:100)=1.0_dp ! initial densities
+  primVar(2,:)=primVar(1,:) ! initial pressure
+  primVar(3,:)=0.dp0  ! initial velocities
+
+  consVar(1,:) = primVar(1,:)   ! D = rho
+  consVar(2,:) = 4*primVar(1,:) ! U = rho*h-p , h=5, rho=p
+  consVar(3,:) = 0.dp0          ! S = rho*h*v , v=0
+
+  write (filename, "data000.dat")
+  open(10,file=filename,status='new')
+  100 format (3e20.10)
+  do i=1,Ncell
+     write(10,100) primVar(1,i) primVar(2,i) primVar(3,i)
+  end do
+  close(10)
+  
+  private
+  public,only:primVar,consVar,Nvar,Ndim,Ncell
+end module grid
+
+program simulation
+  use grid,only:primVar,consVar,Nvar,Ndim,Ncell
+  implicit none
+  integer :: i,j
   !real(dp),parameter :: gam=4/3        ! isentropic expansion factor gamma
-! test 2
-! initialisation
-  subroutine init
-    implicit none
-
-  end subroutine init
-
+  
 ! Fonction pour alleger les calculs  
   function W1D(V,h) result(W)
     implicit none
@@ -23,15 +43,24 @@ program simulation
     real,intent(in) :: h
     W = (V(3)*V(3)/(V(1)*h)+V(2)-V(1)*h)
   end function W1D
+
+ ! calcul de h avec variables primitives
+  function hPrim(V) result(h)
+    implicit none
+    real,dimension(Nvar) :: V
+    real :: h
+    h = 1 + 4*(V(2)/V(1))
+  end function hPrim
     
 ! equations d'evolution
   function evol1D(N) result(dtV)
     implicit none
     real,dimension(Nvar) :: V_N,V_nm,V_np,dtV ! V = (D,U,S), m indice-1, p indice+1
     real :: h,dU,dS,dW
-    V_N = grid_consvar(N,:)
-    V_Nm= grid_consvar(N-1,:)
-    V_Np= grid_consvar(N+1,:)
+    integer :: N
+    V_N = consVar(:,N)
+    V_Nm= consvar(:,N-1)
+    V_Np= consvar(:,N+1)
     
     h  = 0.2*(1+4*(V_N(2)/V_N(1)))
     dW = (W1D(V_Np,h)-W1D(V_N,h))/dx
@@ -56,42 +85,35 @@ program simulation
   end function RK4
 
 ! variables primitives vers variables conservatives
-  subroutine prim2cons(N)
+  subroutine cons2prim
     implicit none
-    integer,intent(in) :: N
-    real :: h
-    real :: rho,P
-    real,dimension(Ndim) :: v
-    real :: D,U,S
-    
-    rho = grid_primvar(N,1)
-    P = grid_primvar(N,2)
-    v = grid_primvar(N,3)
-    h = 1 + 4*P/rho   ! gam = 4/3
-    
-    D = rho
-    U = rho*h-P
-    S = rho*h*v
+    real,dimension(Ncell) :: h
 
-    grid_consvar(N,1) = D
-    grid_consvar(N,2) = U
-    grid_consvar(N,3) = v
-  end subroutine prim2cons
-  
-! evolution des variables
-  subroutine evol1D(N)
+    h(:) = 0.2*(1+4*(consVar(2,:)/consVar(1,:))
+    primVar(1,:) = consVar(1,:) ! rho = D
+    primVar(2,:) = consVar(2,:)-h
+    
+  end subroutine cons2prim
+
+! subroutine d'evolution
+  subroutine evolution
     implicit none
-    real :: D,U,S
-    real :: rho,P
-    real,dimension(Ndim) :: v
-    real,dimension(Ndim*Ndim) :: W
-    
-    rho = grid_primvar(N,1)
-    P = grid_primvar(N,2)
-    v = grid_primvar(N,3)
-    h = 1 + gam/(gam-1)*P/rho
-    W = rho*h*v*v
+    real,dimension(Nvar) :: temp
+    real,parameter :: dt=0.01
+    integer :: i
+    do i = 1,Ncell
+       temp(:) = RK4(consVar(:,i),dt)
+       consVar(:,i)=temp(:)
+    end do
+  end subroutine evolution
 
-    
-  end subroutine evol1D
+  do i=1,10
+     write (filename, "('data',I3.3,'.dat')") i
+     open(10,file=filename,status='new')
+     call evolution
+     call cons2prim
+     do j=1,Ncell
+        write(10,100) primVar(1,i) primVar(2,i) primVar(3,i)
+     end do
+
 end program simulation
