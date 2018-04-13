@@ -35,8 +35,17 @@ module grid
       integer,intent(in) :: N
 
       V_N = V
-      V_Nm= consVar(:,N-1)
-      V_Np= consVar(:,N+1)
+      ! outflow conditions
+      if (N==1) then
+         V_Nm=V
+         V_Np= consVar(:,N+1)
+      elseif (N==Ncell) then
+          V_Nm= consVar(:,N-1)
+          V_Np= V
+      else
+         V_Nm= consVar(:,N-1)
+         V_Np= consVar(:,N+1)
+      end if
     
       h  = 0.2*(1.d0+4.d0*(V_N(2)/V_N(1)))
       dW = ((V_Np(3)*V_Np(3)/(V_Np(1)*h)+V_Np(2)-V_Np(1)*h)-(V_Nm(3)*V_Nm(3)/(V_Nm(1)*h)+V_Nm(2)-V_Nm(1)*h))/(2.d0*dx)
@@ -56,19 +65,6 @@ program simulation
   integer :: i,j
   !real(dp),parameter :: gam=4/3        ! isentropic expansion factor gamma
   
-! Fonction pour alleger les calculs  
-! real(kind=8) function W1D(V,h)
-!    real(kind=8),dimension(Nvar) :: V
-!    real(kind=8),intent(in) :: h
-!    W1D = (V(3)*V(3)/(V(1)*h)+V(2)-V(1)*h)
-!  end function W1D
-
- ! calcul de h avec variables primitives
- ! function hPrim(V) result(h)
- !   real(kind=8),dimension(1:Nvar) :: V
- !   real(kind=8) :: h
- !   h = 1.d0 + 4.d0*(V(2)/V(1))
- ! end function hPrim
   call init()
   do i=1,10
      write (filename, "('data',I3.3,'.dat')") i
