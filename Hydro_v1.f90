@@ -4,8 +4,8 @@ module grid
   integer,parameter :: Ncell=10,Ndim=1,Nvar=3
   real(kind=8),parameter :: Xmin=0.d0,Xmax=1.d0,dx=(Xmax-Xmin)/Ncell
   real(kind=8),dimension(1:Nvar,1:Ncell),save :: primVar,consVar
-  character(len=32),save :: filename
-
+  character(len=16),save :: filename
+  character(len=64),save :: path='/home/acharlet/4A CRAL/Code/Shared/Hydro/Resultats/'
   contains
     subroutine init()
       integer :: i
@@ -17,12 +17,11 @@ module grid
       consVar(2,:) = 4.d0*primVar(1,:) ! U = rho*h-p , h=5, rho=p
       consVar(3,:) = 0.d0          ! S = rho*h*v , v=0
 
-      write (filename,'(a32)') 'data000.dat'
-      open(10,file=filename,status='new')
+      write (filename, "('data000.dat')")
+      open(10,file=path//filename,status='new')
 100   format (3e20.10)
-
       do i=1,Ncell
-         write(10,100) primVar(1,i), primVar(2,i), primVar(3,i)
+         write(10,100)primVar(1,i), primVar(2,i), primVar(3,i)
       end do
       close(10)
     end subroutine init
@@ -68,7 +67,7 @@ program simulation
   call init()
   do i=1,10
      write (filename, "('data',I3.3,'.dat')") i
-     open(10,file=filename,status='new')
+     open(10,file=path//filename,status='new')
      call evolution
      call cons2prim
 100  format (3e20.10) 
@@ -100,13 +99,13 @@ contains
     end forall
     primVar(1,:) = consVar(1,:) ! rho = D
     primVar(2,:) = consVar(2,:)-hc
-    
+    primVar(3,:) = consVar(3,:)/(consVar(1,:)*hc)
   end subroutine cons2prim
 
 ! subroutine d'evolution
   subroutine evolution
     real(kind=8),dimension(Nvar) :: temp
-    real(kind=8),parameter :: dt=0.1d0
+    real(kind=8),parameter :: dt=0.001d0
     integer :: i
     do i = 1,Ncell
        temp(:) = RK4(consVar(:,i),i,dt)
