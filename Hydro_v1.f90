@@ -1,7 +1,7 @@
 module grid
   implicit none
   ! creates grid and keeps it in memory for use
-  integer,parameter :: Ncell=10,Ndim=1,Nvar=3
+  integer,parameter :: Ncell=20,Ndim=1,Nvar=3,Nsteps=100
   real(kind=8),parameter :: Xmin=0.d0,Xmax=1.d0,dx=(Xmax-Xmin)/Ncell
   real(kind=8),dimension(1:Nvar,1:Ncell),save :: primVar,consVar
   character(len=16),save :: filename
@@ -9,7 +9,8 @@ module grid
   contains
     subroutine init()
       integer :: i
-      primVar(1,1:5)=3.d0; primVar(1,6:10)=1.d0 ! initial densities
+      primVar(1,1:floor(Ncell/2.))=3.d0;
+      primVar(1,floor(Ncell/2.):Ncell)=1.d0 ! initial densities
       primVar(2,:)=primVar(1,:) ! initial pressure
       primVar(3,:)=0.d0  ! initial velocities
       
@@ -21,7 +22,7 @@ module grid
       open(10,file=path//filename,status='new')
 100   format (3e20.10)
       do i=1,Ncell
-         write(10,100)primVar(1,i), primVar(2,i), primVar(3,i)
+         write(10,100) primVar(1,i), primVar(2,i), primVar(3,i)
       end do
       close(10)
     end subroutine init
@@ -52,10 +53,9 @@ module grid
       dS = (V_Np(3)-V_Nm(3))/(2.d0*dx)
     
       dV(1) = -dS/h
-      dV(2) = -dW
-      dV(3) = -dS
-    end function evol1D
-    
+      dV(2) = -dS
+      dV(3) = -dW
+    end function evol1D    
 end module grid
 
 program simulation
@@ -65,19 +65,19 @@ program simulation
   !real(dp),parameter :: gam=4/3        ! isentropic expansion factor gamma
   
   call init()
-  do i=1,10
+  do i=1,Nsteps
      write (filename, "('data',I3.3,'.dat')") i
      open(10,file=path//filename,status='new')
      call evolution
      call cons2prim
-100  format (3e20.10) 
+100  format (3e20.10e3) 
      do j=1,Ncell
-        write(10,100) primVar(1,i), primVar(2,i), primVar(3,i)
+        write(10,100) primVar(1,j), primVar(2,j), primVar(3,j)
      end do
-  end do   
-contains
+  end do
   
-    ! Runge Kutta 4
+contains
+! Runge Kutta 4
   function RK4(V_i,N,dt) result(dV)
     integer,intent(in) :: N
     real(kind=8),intent(in) :: dt
@@ -92,27 +92,24 @@ contains
 
 ! variables primitives vers variables conservatives
   subroutine cons2prim
-    real(kind=8),dimension(Ncell) :: hc  ! h but calculated over all cells to simplify code
-    integer :: Ivar
-    forall(Ivar=1:Nvar)
-       hc(Ivar) = 0.2d0*(1.d0+4.d0*(consVar(2,Ivar)/consVar(1,Ivar)))
-    end forall
-    primVar(1,:) = consVar(1,:) ! rho = D
-    primVar(2,:) = consVar(2,:)-hc
-    primVar(3,:) = consVar(3,:)/(consVar(1,:)*hc)
+    real(kind=8) :: h
+    integer :: i
+    do i=1,Ncell
+       h=0.2d0*(1.d0+4.d0*(consVar(2,i)/consVar(1,i)))
+       primVar(1,i) = consVar(1,i)
+       primVar(2,i) = consVar(2,i)-h
+       primVar(3,i) = consVar(3,i)/(h*consVar(1,i))
+    end do
   end subroutine cons2prim
 
 ! subroutine d'evolution
   subroutine evolution
     real(kind=8),dimension(Nvar) :: temp
-    real(kind=8),parameter :: dt=0.001d0
+    real(kind=8),parameter :: dt=0.01d0
     integer :: i
     do i = 1,Ncell
        temp(:) = RK4(consVar(:,i),i,dt)
        consVar(:,i)=temp(:)
     end do
   end subroutine evolution
-
-
-
 end program simulation
