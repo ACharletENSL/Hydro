@@ -78,17 +78,26 @@ program simulation
   
 contains
 ! Runge Kutta 4
-  function RK4(V_i,N,dt) result(dV)
+  function RK4(V_i,N,dt) result(V_f)
     integer,intent(in) :: N
     real(kind=8),intent(in) :: dt
     real(kind=8),dimension(Nvar),intent(in) :: V_i
-    real(kind=8),dimension(Nvar) :: k1,k2,k3,k4,dV
+    real(kind=8),dimension(Nvar) :: k1,k2,k3,k4,V_f
     k1 = evol1D(V_i,N)
     k2 = evol1D(V_i+0.5d0*dt*k1,N)
     k3 = evol1D(V_i+0.5d0*dt*k2,N)
     k4 = evol1D(V_i+dt*k3,N)
-    dV = V_i + (dt/6.d0)*(k1+2.d0*k2+2.d0*k3+k4)
+    V_f = V_i + (dt/6.d0)*(k1+2.d0*k2+2.d0*k3+k4)
   end function RK4
+
+! Finite Volume
+  function fV1D(V_i,N,dt) result(V_f)
+    integer,intent(in) :: N
+    real(kind=8),intent(in) :: dt
+    real(kind=8),dimension(Nvar),intent(in) :: V_i
+    real(kind=8),dimension(Nvar) :: V_f
+    V_f = V_i - dt*evol1D(V_i,N)
+  end function fV1D
 
 ! variables primitives vers variables conservatives
   subroutine cons2prim
@@ -108,7 +117,7 @@ contains
     real(kind=8),parameter :: dt=0.01d0
     integer :: i
     do i = 1,Ncell
-       temp(:) = RK4(consVar(:,i),i,dt)
+       temp(:) = fV1D(consVar(:,i),i,dt)
        consVar(:,i)=temp(:)
     end do
   end subroutine evolution
