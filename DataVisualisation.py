@@ -5,7 +5,7 @@ Ncell=1000; Nvar=3
 dx = 1./Ncell
 x = np.arange(0,1,dx)
 k=0
-path = '/media/acharlet/Data/Arthur/Documents/Cours/4A_CRAL/Code/Perso/Hydro/Resultats_Nc1000_dt0.001_1t1s'
+path = '/media/acharlet/Data/Arthur/Documents/Cours/4A_CRAL/Code/Perso/Hydro/Resultats'
 os.chdir(path)
 maxrho=minrho=maxP=minP=maxv=minv=0.
 #for filename in os.listdir(path):
