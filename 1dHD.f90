@@ -101,8 +101,7 @@ contains
   subroutine evol1t1s
     integer :: i,j,k,l
     real(kind=8) :: ctemp
-    real(kind=8),dimension(Nvar) :: V,Vnew
-    real(kind=8),dimension(1:Nvar,1:Ncell) :: dV
+    real(kind=8),dimension(Nvar) :: Vnew
     real(kind=8),dimension(1:Nvar,1:Ncell+1) :: F,diss
     ! vérification du pas de temps
     do i = 1,Ncell
