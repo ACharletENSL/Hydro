@@ -1,14 +1,14 @@
 module grid
   implicit none
   ! creates grid
-  integer,parameter :: Ncell=15,Ndim=2,Nvar=4,Nsteps=20
-  real(kind=8),parameter :: ds=0.01d0,dx=ds,dy=ds,dt_i=0.0001d0,T_tot=Nsteps*dt_i
+  integer,parameter :: Ncell=49,Ndim=2,Nvar=4,Nsteps=100
+  real(kind=8),parameter :: gam=4.0d0/3.0d0,ds=0.01d0,dx=ds,dy=ds,dt_i=0.0001d0,T_tot=Nsteps*dt_i
   real(kind=8),save :: c,dt,t
-  real(kind=8),dimension(1:Nvar,1:Ncell,1:Ncell),save :: primVar,consVar
+  real(kind=8),dimension(1:Nvar,1:Ncell,1:Ncell),save :: primVar,consVar,gridfluxx
   real(kind=8),dimension(1:Nvar,1:Ncell+1,1:Ncell),save :: gridFx,gridDx
   real(kind=8),dimension(1:Nvar,1:Ncell,1:Ncell+1),save :: gridFy,gridDy
   character(len=16),save :: filename1,filename2,filename3
-  character(len=128),save :: path='/media/acharlet/Data/Arthur/Documents/Cours/4A_CRAL/Code/Perso/Hydro/Resultats2D/',FileName
+  character(len=128),save :: path='/home/acharl01/Work/Shared/Resultats2D/',FileName
   
   contains
     subroutine init()
@@ -16,7 +16,15 @@ module grid
       c=1; dt=dt_i; t=0
       !density
       primVar(1,:,:) = 1.0d0
-      primVar(1,6:10,6:10)=3.d0;
+      primvar(1,25,21)=3.0d0
+      primVar(1,24:26,22)=3.0d0
+      primVar(1,23:27,23)=3.0d0
+      primVar(1,22:28,24)=3.0d0
+      primVar(1,21:29,25)=3.0d0
+      primVar(1,22:28,26)=3.0d0
+      primVar(1,23:27,27)=3.0d0
+      primVar(1,24:26,28)=3.0d0
+      primVar(1,25,29)=3.0d0
       !velocity
       primVar(2,:,:) = 0.d0
       primVar(3,:,:) = 0.d0
@@ -29,7 +37,7 @@ module grid
 
       write (filename1, "('data0000.dat')")
       FileName=trim(adjustl(path))//trim(adjustl(filename1))
-      open(10,file=FileName,status='new')
+      open(10,file=FileName,status='unknown')
 101   format(2(1x,i5),2x,4e20.10)
       do i=1,Ncell
          do j=1,Ncell
@@ -44,9 +52,9 @@ module grid
     real(kind=8),dimension(Nvar),intent(in) :: Vc
     real(kind=8),dimension(Nvar) :: Vp
     Vp(1) = Vc(1)
-    Vp(2) = Vc(2)/Vc(1)
-    Vp(3) = Vc(3)/Vc(1)
-    Vp(4) = Vc(1)-Vc(4)
+    Vp(4) = 0.25d0*Vc(4)
+    Vp(2) = Vc(2)/(3.0d0*Vp(4))
+    Vp(3) = Vc(3)/(3.0d0*Vp(4))
   end function cons2prim
   
   ! variables conservatives vers variables primitives
@@ -54,9 +62,9 @@ module grid
     real(kind=8),dimension(Nvar),intent(in) :: Vp
     real(kind=8),dimension(Nvar) :: Vc
     Vc(1) = Vp(1)
-    Vc(2) = Vp(1)*Vp(2)
-    Vc(3) = Vp(1)*Vp(3)
-    Vc(4) = Vp(1)-Vp(4)
+    Vc(2) = 3.0d0*Vp(4)*Vp(2)
+    Vc(3) = 3.0d0*Vp(4)*Vp(3)
+    Vc(4) = 4.0d0*Vp(4)
   end function prim2cons
 end module grid
 
@@ -69,35 +77,35 @@ program simulation
   do iStep=1,Nsteps
      write (filename1, "('data',I4.4,'.dat')") iStep
      FileName=trim(adjustl(path))//trim(adjustl(filename1))
-     open(10,file=FileName,status='new')
+     open(10,file=FileName,status='unknown')
      call evol1t1s
      do i=1,Ncell
         do j=1,Ncell
            primVar(:,i,j) = cons2prim(consVar(:,i,j))
         end do
      end do
-101  format(2(1x,i5),2x,4e20.10)
+ 101  format(2(1x,i5),2x,4e20.10)
      do i=1,Ncell
         do j=1,Ncell
             write(10,101) i, j, primVar(1,i,j), primVar(2,i,j), primVar(3,i,j), primVar(4,i,j)
         end do
+          end do
+     write (filename2, "('Sflux',I4.4,'.dat')") iStep
+     FileName=trim(adjustl(path))//trim(adjustl(filename2))
+     open(11,file=FileName,status='unknown')
+     do i=1,Ncell
+        do j=1,Ncell
+            write(11,101) i, j, gridFx(2,i,j), gridFy(2,i,j), gridFx(3,i,j), gridFy(3,i,j)
+        end do
      end do
-     !write (filename2, "('flux',I4.4,'.dat')") iStep
-     !FileName=trim(adjustl(path))//trim(adjustl(filename2))
-     !open(11,file=FileName,status='new')
-     !do i=1,Ncell
+     ! write (filename3, "('fluxx',I4.4,'.dat')") iStep
+     ! FileName=trim(adjustl(path))//trim(adjustl(filename3))
+     ! open(12,file=FileName,status='new')
+     ! do i=1,Ncell
      !   do j=1,Ncell
-     !       write(11,101) i, j, gridFx(1,i,j), gridFy(1,i,j), gridFx(4,i,j), gridFy(4,i,j)
+     !       write(12,101) i, j, gridfluxx(1,i,j), gridfluxx(2,i,j), gridfluxx(3,i,j), gridfluxx(4,i,j)
      !   end do
-     !end do
-     !write (filename3, "('diss',I4.4,'.dat')") iStep
-     !FileName=trim(adjustl(path))//trim(adjustl(filename3))
-     !open(12,file=FileName,status='new')
-     !do i=1,Ncell
-     !   do j=1,Ncell
-     !       write(12,101) i, j, gridDx(1,i,j), gridDy(1,i,j), gridDx(4,i,j), gridDy(4,i,j)
-     !   end do
-     !end do
+     ! end do
   end do
      
 contains
@@ -107,9 +115,9 @@ contains
     real(kind=8),dimension(Nvar) :: Vp
     real(kind=8),dimension(Nvar) :: Fx
     Vp = cons2prim(Vc)
-    Fx(1) = Vc(2)
+    Fx(1) = Vc(1)*Vp(2)
     Fx(2) = Vc(2)*Vp(2)+Vp(4) !flux Sx selon x
-    Fx(3) = Vc(3)*Vp(2)+Vp(4) !flux Sy selon x
+    Fx(3) = Vc(3)*Vp(2) !flux Sy selon x
     Fx(4) = Vc(2)
   end function fluxx
   function fluxy(Vc) result(Fy)
@@ -118,8 +126,8 @@ contains
     real(kind=8),dimension(Nvar) :: Vp
     real(kind=8),dimension(Nvar) :: Fy
     Vp = cons2prim(Vc)
-    Fy(1) = Vc(3)
-    Fy(2) = Vc(2)*Vp(3)+Vp(4) !flux Sx selon y
+    Fy(1) = Vc(1)*Vp(3)
+    Fy(2) = Vc(2)*Vp(3) !flux Sx selon y
     Fy(3) = Vc(3)*Vp(3)+Vp(4) !flux Sy selon y
     Fy(4) = Vc(3)
   end function fluxy
@@ -149,6 +157,12 @@ contains
        Fx(:,Ncell+1,l) = Fx(:,Ncell,l)
     end do
     gridFx(:,:,:) = Fx(:,:,:)
+    do l = 1,Ncell
+       do k = 1,Ncell
+          gridfluxx(:,k,l)=fluxx(consVar(:,k,l))
+       end do
+    end do
+    
     do k = 1,Ncell
        do l = 2,Ncell
           Fy(:,k,l) = 0.5d0*(fluxy(consVar(:,k,l-1))+fluxy(consVar(:,k,l)))
